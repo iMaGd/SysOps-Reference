@@ -80,6 +80,18 @@ A practical cheat sheet for advanced Bash usage, globbing, redirection, pipes, e
   echo "Hello" | tee file.txt | wc -c
   ```
 
+### Write multiple lines to a file
+
+- `cat` reads from standard input (your keyboard or whatever comes after <<EOF)
+- `>` redirects that output into the file `output.txt`, overwriting it. or
+- `>>` redirects that output into the file `output.txt`, appending it.
+
+```bash
+cat > output.txt <<'EOF'
+...
+EOF
+```
+
 ---
 
 ## 🔹 `grep` Command
