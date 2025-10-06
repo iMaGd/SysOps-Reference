@@ -7,9 +7,18 @@ a                   insert after cursor
 A                   insert at the end of the line
 o                   open a new line below the cursor
 O                   open a new line above the cursor
+
+# deleting text
+x                   delete current character
+X                   delete previous character
+dd                  delete (cut) a line
+dw                  delete (cut) to the end of word (same as de)
+diw                 delete (cut) word under the cursor
+daw                 delete (cut) word under the cursor and the space after or before it
+dap                 delete (cut) a paragraph
 ```
 
-### Exiting Vim
+### Normal Mode (Exiting Vim)
 
 ```bash
 :q                  quit Vim. This fails when changes have been made.
@@ -25,18 +34,14 @@ ZZ                  write current file, if modified, and exit.
 ZQ                  quit current file and exit (same as ":q!").
 ```
 
-### Deleting Text
+### Visual Mode
 
 ```bash
-x                   delete current character
-X                   delete previous character
-dw                  delete (cut) to the end of word (same as de)
-diw                 delete (cut) word under the cursor
-daw                 delete (cut) word under the cursor and the space after or before it
-dap                 delete (cut) a paragraph
-dd                  delete (cut) a line
+v                   enter visual mode
+V                   enter visual line mode
 ```
 
+----
 
 ### Vim Config file `~/.vimrc`
 
