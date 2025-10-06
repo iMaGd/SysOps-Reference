@@ -13,7 +13,7 @@ O             open a new line above the cursor
 
 ### Command Mode (`ESC`)
 
-You can enter the command mode by pressing the `ESC` key. Then you can run the following commands.
+When you open a file in vim you are in command mode. However, you can enter the command mode by pressing the `ESC` key and use the following common commands.
 
 ```bash
 # Exiting Vim
