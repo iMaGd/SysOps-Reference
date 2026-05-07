@@ -26,13 +26,47 @@
 
 ## Configuring Nginx
 
-Simple example:
+
+### Main configuration file
+
+- `/etc/nginx/nginx.conf`
+
+The main config file is the entry point for Nginx. It contains the global configuration directives that apply to all virtual hosts.
+In abstract terms, it defines the following:
+
+-   **Events**: Configures worker connections.
+-   **HTTP**: Defines the server block for handling HTTP requests.
+
+```nginx
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+        listen 80;
+
+        location ~ \.php$ {
+        }
+    }
+}
+```
+> This a big picture about the hierarchy of a Nginx configuration file.
+Everything defined in `http` block is global and is available in `server` and `location` blocks and CANNOT be overwriten by them.
+
+### Default Virtual Site
+
+The default virtual site is the site that Nginx serves when no other site matches the request.
+It is typically used to redirect requests to a default domain or to display a 404 error.
+
+
+
+Otherwise, you can create a default virtual site by creating a configuration file in the `/etc/nginx/sites-available/` directory.
 
 ```bash
 nano /etc/nginx/sites-available/example.conf
 ```
 
-### Default Virtual Site
 ```
 server {
     listen 80 default_server;
@@ -357,3 +391,306 @@ server {
 ## Pass Protect Directory
 
 See [htpasswd guide](./htpasswd.md) for password protecting directories
+
+---
+
+### Main `nginx.conf` (High-Traffic/Production)
+
+```nginx
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    use epoll;
+    multi_accept on;
+    worker_connections 65535;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+
+    keepalive_timeout 65;
+    keepalive_requests 100000;
+
+    server_tokens off;
+
+    client_max_body_size 64m;
+    client_body_buffer_size 128k;
+    client_body_timeout 60s;
+    client_header_timeout 60s;
+    large_client_header_buffers 4 16k;
+
+    open_file_cache max=10000 inactive=20s;
+    open_file_cache_valid 30s;
+    open_file_cache_min_uses 2;
+    open_file_cache_errors on;
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_disable "msie6";
+    gzip_comp_level 5;
+    gzip_buffers 16 8k;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript application/font-woff application/x-font-ttf image/svg+xml;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /var/log/nginx/access.log main;
+    error_log  /var/log/nginx/error.log warn;
+
+    resolver 1.1.1.1 1.0.0.1 valid=300s;
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+```
+
+### Main `nginx.conf` (Behind Cloudflare)
+
+```nginx
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    <!-- optimal for Linux, high concurrency -->
+    use epoll;
+    multi_accept on;
+    worker_connections 65535;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+
+    keepalive_timeout 65;
+    keepalive_requests 100000;
+
+    server_tokens off;
+
+    real_ip_header CF-Connecting-IP;
+    real_ip_recursive on;
+    set_real_ip_from 173.245.48.0/20;
+    set_real_ip_from 103.21.244.0/22;
+    set_real_ip_from 103.22.200.0/22;
+    set_real_ip_from 103.31.4.0/22;
+    set_real_ip_from 141.101.64.0/18;
+    set_real_ip_from 108.162.192.0/18;
+    set_real_ip_from 190.93.240.0/20;
+    set_real_ip_from 188.114.96.0/20;
+    set_real_ip_from 197.234.240.0/22;
+    set_real_ip_from 198.41.128.0/17;
+    set_real_ip_from 162.158.0.0/15;
+    set_real_ip_from 104.16.0.0/13;
+    set_real_ip_from 104.24.0.0/14;
+    set_real_ip_from 172.64.0.0/13;
+    set_real_ip_from 131.0.72.0/22;
+    set_real_ip_from 2400:cb00::/32;
+    set_real_ip_from 2606:4700::/32;
+    set_real_ip_from 2803:f800::/32;
+    set_real_ip_from 2405:b500::/32;
+    set_real_ip_from 2405:8100::/32;
+    set_real_ip_from 2a06:98c0::/29;
+    set_real_ip_from 2c0f:f248::/32;
+
+    client_max_body_size 64m;
+    client_body_buffer_size 128k;
+    client_body_timeout 60s;
+    client_header_timeout 60s;
+    large_client_header_buffers 4 16k;
+
+    open_file_cache max=10000 inactive=20s;
+    open_file_cache_valid 30s;
+    open_file_cache_min_uses 2;
+    open_file_cache_errors on;
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_disable "msie6";
+    gzip_comp_level 5;
+    gzip_buffers 16 8k;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript application/font-woff application/x-font-ttf image/svg+xml;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /var/log/nginx/access.log main;
+    error_log  /var/log/nginx/error.log warn;
+
+    resolver 1.1.1.1 1.0.0.1 valid=300s;
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+```
+
+
+-----
+
+### ServerPilot
+
+```nginx
+error_log  /var/log/nginx-sp/error.log;
+
+pid        /var/run/nginx-sp.pid;
+
+<!-- global tuning (buffers, limits, maps) -->
+include    /etc/nginx-sp/core.d/*.conf;
+
+events {
+    multi_accept on;
+    use epoll;
+    <!-- worker / connection tuning -->
+    include /etc/nginx-sp/events.d/*.conf;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    server_tokens off;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for" '
+                      '$request_length $request_time '
+                      '"$upstream_response_length" "$upstream_response_time" "$host"';
+
+    access_log  /var/log/nginx-sp/access.log  main;
+
+    server_names_hash_max_size 65536;
+    server_names_hash_bucket_size 1024;  # Max length of domain names.
+    types_hash_max_size 2048;
+
+    sendfile        on;
+
+    gzip         on;
+    # text/html does not need to be listed as it is always included by nginx.
+    # WOFF files are already compressed, so application/x-font-woff is not needed.
+    gzip_types   text/plain text/css application/json
+                 text/javascript application/javascript application/x-javascript
+                 text/xml application/xml application/xml+rss image/svg+xml
+                 application/vnd.ms-fontobject application/x-font-ttf font/opentype;
+    gzip_vary    on;
+    gzip_disable "msie6";
+
+    # CloudFlare proxy addresses.
+    # Do not modify this list. If you believe the CloudFlare proxy address list is
+    # out of date, please contact support@serverpilot.io.
+    set_real_ip_from    103.21.244.0/22;
+    set_real_ip_from    103.22.200.0/22;
+    set_real_ip_from    103.31.4.0/22;
+    set_real_ip_from    104.16.0.0/13;
+    set_real_ip_from    104.24.0.0/14;
+    set_real_ip_from    108.162.192.0/18;
+    set_real_ip_from    131.0.72.0/22;
+    set_real_ip_from    141.101.64.0/18;
+    set_real_ip_from    162.158.0.0/15;
+    set_real_ip_from    172.64.0.0/13;
+    set_real_ip_from    173.245.48.0/20;
+    set_real_ip_from    188.114.96.0/20;
+    set_real_ip_from    190.93.240.0/20;
+    set_real_ip_from    197.234.240.0/22;
+    set_real_ip_from    198.41.128.0/17;
+    set_real_ip_from    2400:cb00::/32;
+    set_real_ip_from    2405:8100::/32;
+    set_real_ip_from    2405:b500::/32;
+    set_real_ip_from    2606:4700::/32;
+    set_real_ip_from    2803:f800::/32;
+    set_real_ip_from    2a06:98c0::/29;
+    set_real_ip_from    2c0f:f248::/32;
+
+    real_ip_header      X-Forwarded-For;
+
+    <!-- shared snippets -->
+    include /etc/nginx-sp/conf.d/*.conf;
+    <!-- HTTP-level behaviour (maps, limits, WAF-like rules) -->
+    include /etc/nginx-sp/http.d/*.conf;
+    <!-- per-site config -->
+    include /etc/nginx-sp/vhosts.d/*.conf;
+    <!-- overrides / final rules -->
+    include /etc/nginx-sp/last.d/*.conf;
+}
+```
+
+###
+
+Nginx values can be set in:
+
+- `http {}`
+- `server {}`
+- `location {}`
+
+```
+events{}
+
+http {
+    proxy_read_timeout 60s;
+
+    server {
+        proxy_read_timeout 90s;
+
+        location /admin {
+            proxy_read_timeout 120s;
+        }
+    }
+}
+```
+
+**Result:**
+- / = 90s
+- /admin = 120s
+
+## Common Variables in Nginx:
+
+#### Nginx variable scoping works like this:
+
+- **`http` block**: Global configuration, executed once
+- **`server` block**: Per virtual host, can access http-level variables
+- **`location` block**: Per URL pattern, can access server-level and http-level variables
+
+---
+
+
+**`$scheme`** = `http` or `https` ✓ (same as custom)
+
+**`$proxy_host`** = The hostname from the `proxy_pass` directive
+- Used for **reverse proxy** scenarios
+- For FastCGI, this would be empty or irrelevant
+
+**`$uri`** = Normalized URI **without** query string
+- Example: `/blog/post` (strips `?id=123`)
+
+**`$is_args`** = `?` if query string exists, empty otherwise
+
+**`$args`** = Query string parameters
+- Example: `id=123&page=2`
+
+**`$query_string`** = Query string parameters
+- Example: `id=123&page=2`
+
+> **`$args`** and **`$query_string`** are the same, they are alias for each other.
+
+**`$request_method`** = `GET`, `POST`, `HEAD`, etc.
+
+**`$host`** = The domain name from the request
+- Example: `example.com` or `www.example.com`
+
+**`$request_uri`** = Full URI **including** query string
+- Example: `/blog/post?id=123`
+
+**`$remote_addr`** = Client IP address
+- Example: `123.45.67.89`
