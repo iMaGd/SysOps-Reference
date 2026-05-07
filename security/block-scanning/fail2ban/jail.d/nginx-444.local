@@ -1,0 +1,21 @@
+[nginx-444]
+enabled  = true
+filter   = nginx-444
+backend  = auto
+port     = http,https
+
+ignoreip = 127.0.0.1/8 ::1 0.0.0.0
+
+logpath  =
+    /var/log/nginx*/access*.log
+    /srv/users/*/log/*/*nginx.access*.log
+
+findtime = 1m
+maxretry = 10
+bantime  = 10m
+bantime.increment = true
+bantime.factor = 3
+bantime.maxtime = 4w
+
+# action = iptables[name=nginx-444, port="http,https"]
+action = nftables[name=nginx-444, port="http,https"]
