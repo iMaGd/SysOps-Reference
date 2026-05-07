@@ -90,3 +90,56 @@ Replace `sshd` with the relevant jail name.
 ### Boilerplate
 
 [Fail2Ban Install and Config Script](../scripts/fail2ban.sh)
+
+
+-------
+
+**Create the filter (detect 444)**
+
+Create a filter file
+
+```bash
+sudo nano /etc/fail2ban/filter.d/nginx-444.conf
+```
+
+Add the following content to the file:
+
+```bash
+[Definition]
+failregex = ^<HOST> .* "(GET|POST|HEAD|PUT|DELETE|OPTIONS).*" 444
+ignoreregex =
+```
+
+**Create the jail (rate limit + ban)**
+
+Create a jail file
+
+```bash
+sudo nano /etc/fail2ban/jail.d/nginx-444.local
+```
+
+Add the following content to the file:
+
+```bash
+[nginx-444]
+enabled  = true
+filter   = nginx-444
+backend  = auto
+port     = http,https
+
+ignoreip = 127.0.0.1/8 ::1 103.0.0.1
+
+logpath  =
+    /var/log/nginx-sp/*.log
+    /srv/users/*/log/*/*_nginx.access*.log
+
+findtime = 1m
+maxretry = 20
+bantime  = 10m
+bantime.increment = true
+bantime.factor = 2
+bantime.maxtime = 2w
+
+# action = iptables[name=nginx-444, port="http,https"]
+action = nftables[name=nginx-444, port="http,https"]
+```
